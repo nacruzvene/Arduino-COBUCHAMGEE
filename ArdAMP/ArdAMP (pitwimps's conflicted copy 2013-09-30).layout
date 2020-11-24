@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_layout_file>
+	<ActiveTarget name="Debug" />
+	<File name="ArdAMP.cpp" open="1" top="0" tabpos="3">
+		<Cursor position="4505" topLine="125" />
+	</File>
+	<File name="ArdAMP.hpp" open="1" top="0" tabpos="2">
+		<Cursor position="3258" topLine="36" />
+	</File>
+	<File name="ArdAMP.ino" open="1" top="0" tabpos="1">
+		<Cursor position="448" topLine="15" />
+	</File>
+</CodeBlocks_layout_file>

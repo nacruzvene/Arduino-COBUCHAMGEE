@@ -1,0 +1,84 @@
+/*  ********************************************************************
+ *  This is a library for the analog MUX CD74HC4067SMD.
+ *
+ *  This code handily MUXes any channel with the routines built in.
+ *
+ *  Written by Pitam Mitra for the PICO Dark Matter Search Experiment
+ *  detector R&D. GNU GPLv3 License. Enjoy!
+ *
+ *  Rev 1: Wrote the code. (Aug 11, 2013)
+ *
+ *  ********************************************************************
+ *
+ *  Look at the Arduino documentation on the pinouts.
+ *
+ *  We will connect the COM to a digital and an analog pin, and use
+ *  it to read/write signals. The MUX is 2 way.
+ *
+ * *********************************************************************
+ */
+
+
+#include "MUXDict.hpp"
+#include <map.h>
+
+
+
+MUXer::MUXer(void)
+{
+    /* We generate a mapping function to map
+    * the inputs to the 4 switches, represented
+    * by a 4 digit binary number */
+
+    std::map <uint8_t, int> muxmap;
+
+    /* Assign the maps */
+    muxmap[0] = B0000;
+    muxmap[1] = B1000;
+    muxmap[2] = B0100;
+    muxmap[3] = B1100;
+    muxmap[4] = B0010;
+    muxmap[5] = B1010;
+    muxmap[6] = B0110;
+    muxmap[7] = B1110;
+    muxmap[8] = B0001;
+    muxmap[9] = B1001;
+    muxmap[10] = B0101;
+    muxmap[11] = B1101;
+    muxmap[12] = B0011;
+    muxmap[13] = B1011;
+    muxmap[14] = B0111;
+    muxmap[15] = B1111;
+
+
+
+    /* initialize the COM Pins */
+    pinMode(MUX_COM_D, OUTPUT);
+    pinMode(MUX_COM_A, INPUT);
+
+    /* initialize the Muxer Pins */
+    pinMode(MUX_A, OUTPUT);
+    pinMode(MUX_B, OUTPUT);
+    pinMode(MUX_C, OUTPUT);
+    pinMode(MUX_D, OUTPUT);
+
+}
+
+/* Function to select channel on chip */
+void MUXer::SelectChannel(int8_t channel)
+{
+    /* Need a 32 bit number to store the data */
+    int binMap = this->muxmap[channel];
+
+    /* Start ChipSelect */
+    B0001&binMap ? digitalWrite(MUX_D, HIGH) : digitalWrite(MUX_D, LOW);
+    B0010&binMap ? digitalWrite(MUX_C, HIGH) : digitalWrite(MUX_D, LOW);
+    B0100&binMap ? digitalWrite(MUX_B, HIGH) : digitalWrite(MUX_D, LOW);
+    B1000&binMap ? digitalWrite(MUX_A, HIGH) : digitalWrite(MUX_D, LOW);
+
+}
+
+int MUXer::WriteDigitalSignal(int channel)
+{
+    this->SelectChannel(channel);
+}

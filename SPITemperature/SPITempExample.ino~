@@ -1,0 +1,40 @@
+/*
+  SPI Code to read the temperature from SPI device.
+ */
+
+ #include "SPITemperature.hpp"
+#include <SPI.h>
+ //#include<stdint.h>
+
+ /*declare the slaveselect pin*/
+ int SlaveSelect = 7;
+
+ SPITC tc_one(SlaveSelect);
+
+// the setup routine runs once when you press reset:
+void setup()
+{
+  Serial.begin(9600);
+  Serial.println("TC Test Using new class");
+}
+
+
+// the loop routine runs over and over again forever:
+void loop()
+{
+    /* Test read cold junction temperature */
+  Serial.print("Cold Junction Temp: ");
+  Serial.println(tc_one.readInternalCJ());
+
+    /*Read thermocouple temperature and check if there is an error */
+  register float therm_temp = tc_one.readTC();
+  if (isnan(therm_temp))
+    {
+        Serial.println("Thermocouple open circuit or short.");
+    } else {
+        Serial.print("Temperature (C): ");
+        Serial.println(therm_temp);
+    }
+
+  delay(3000);               // wait for 3 seconds
+}

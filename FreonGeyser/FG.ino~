@@ -1,0 +1,223 @@
+/*
+  Testing code for the MUX - if this even compiles
+ */
+
+#include <MUXDict.hpp>
+#include <SPITemperature.hpp>
+#include "PID_v1.h"
+#include <SPI.h>
+
+/*SET THESE BEFORE USING!!!!
+These are the PWM pins for the PELTSYS systems!!*/
+#define PELT_PWM1 13
+#define PELT_PWM2 14
+#define PELT_PWM3 15
+
+/*Make instances of stuff we need. Need the mux library*/
+MUXer MUXOne;
+/*some variables for channel selection*/
+int selectChannel, parsedChannel;
+/*assign the SS pin to MUX_COM_D*/
+int SlaveSelect = MUX_COM_D;
+/*and init the SPI TC code*/
+SPITC tc_one(SlaveSelect);
+/*PID Stuff*/
+//Define Variables we'll be connecting to
+float Setpoint1, Input1, Output1;
+float Setpoint2, Input2, Output2;
+float Setpoint3, Input3, Output3;
+
+/* Specify the links and initial tuning parameters
+ * -------------------------
+ * The params are like this:
+ *
+ * PID pidname(Input, Output, Set Point, Kp, Ki, Kd, ControllerDirection)
+ * Input : Temperature in C (can be float)
+ * Output: 0-255 arduino PWM value
+ * Set Point : in degree C (float)
+ *
+ * Kp: Proportional constant
+ * Ki: Integral constant
+ * Kd: Derivative constant
+ *
+ * ControllerDirection: DIRECT or REVERSE
+ * http://playground.arduino.cc//Code/PIDLibrarySetControllerDirection
+ * We use REVERSE since, we ACCELERATE to reacha  lower temperature
+ * we are like a refridgerator, not loke a car in that example
+ * -------------------------
+ */
+
+
+PID pelt1(&Input1, &Output1, &Setpoint1, 2, 5, 1, REVERSE);
+PID pelt2(&Input2, &Output2, &Setpoint2, 2, 5, 1, REVERSE);
+PID pelt3(&Input3, &Output3, &Setpoint3, 2, 5, 1, REVERSE);
+
+/*Virtual Input Variables - for debugging*/
+int VInput;
+
+/*Time tracking variable - memory allocation */
+unsigned long currentMillis;
+long previousMillis = 0;
+long interval1 = 1000;
+long interval2 = 1000;
+long interval3 = 1000;
+
+
+
+/*Code that runs once, when your program begins*/
+void setup()
+{
+    Serial.begin(115200);
+    Serial.println("TC Test Using MUXer");
+
+    //turn the PID on - set it to AUTOMATIC
+    pelt1.SetMode(AUTOMATIC);
+    //turn the PID off - for debug - MANUAL mode
+    pelt2.SetMode(MANUAL);
+    //turn the PID off - debug MANUAL mode
+    pelt3.SetMode(MANUAL);
+
+    SPI.begin(4);
+    SPI.setClockDivider(4, 168);
+}
+
+/*Function to read a TC, by selecting a channel*/
+float ReadTC_MUX(int channel)
+{
+    /*First, activate a TC sensor IC by setting its
+    chipselect to ground*/
+    MUXOne.WriteDigitalSignal(selectChannel, 0);
+
+    /*some debug prints...*/
+    Serial.print("Selecting Channel: ");
+    Serial.println(selectChannel);
+    /* Test read cold junction temperature */
+    Serial.print("Cold Junction Temp: ");
+    Serial.println(tc_one.readInternalCJ());
+
+
+    /*Read thermocouple temperature and check if there is an error */
+    register float therm_temp = tc_one.readTC();
+    /*First, if there is an error*/
+    if (isnan(therm_temp))
+    {
+        Serial.println("Thermocouple open circuit or short.");
+    }
+    else
+    {
+        Serial.print("Temperature (C): ");
+        Serial.println(therm_temp);
+    }
+
+    /*Deselect the chip, by setting CS as HIGH*/
+    MUXOne.WriteDigitalSignal(selectChannel, 1);
+    Serial.println("Read TC: done");
+
+    return therm_temp;
+}
+
+
+/*This function calculates the new PWM values based on
+the present temperature and the past hysterisis
+and sets new PWM values
+
+We have bool p1, p2 and p3 indicating
+which PIDs are on and which ones to compute.
+
+Remember to set the Input1,2,3 params before
+running this function. The reason they are decoupled
+is that people may want to just run the thermometer
+without the PWM cntrols.
+*/
+
+void doPIDMagic(bool p1, bool p2, bool p3)
+{
+
+    /*For PELTSYS1*/
+    if (p1)
+    {
+        /*Compute the new PWM value*/
+        pelt1.Compute();
+        /*Set the new PWM value*/
+        analogWrite(PELT_PWM1, Output1);
+    }
+
+    /*For PELTSYS2*/
+    if (p2)
+    {
+        /*Compute the new PWM value*/
+        pelt2.Compute();
+        /*Set the new PWM value*/
+        analogWrite(PELT_PWM2, Output2);
+    }
+
+    /*For PELTSYS3*/
+    if (p3)
+    {
+        /*Compute the new PWM value*/
+        pelt3.Compute();
+        /*Set the new PWM value*/
+        analogWrite(PELT_PWM3, Output3);
+    }
+
+}
+
+
+/*This in its own right should be a module
+This parses the inputs given by the user
+and makes calls to procedures requested*/
+
+
+void SerialParse(void)
+{
+    // read the sensor:
+    if (Serial.available() > 0)
+    {
+        int inByte = Serial.read();
+
+        switch (inByte)
+        {
+        case 'p':
+            selectChannel = Serial.parseInt();
+            ReadTC_MUX(selectChannel);
+            break;
+        case 'q':
+            selectChannel = Serial.parseInt();
+            //MUXOne.WriteDigitalSignal(selectChannel, 1);
+            Serial.print("Selecting Channel: ");
+            Serial.println(selectChannel);
+            break;
+
+        /*Case to set the set point of pelt1*/
+        case 'a':
+            Input1=Serial.parseFloat();
+            Serial.print("PeltSys 1 setpoint changed to: ");
+            Serial.println(Input1);
+            break;
+        /*Case to set the set point of pelt2*/
+        case 'b':
+            Input1=Serial.parseFloat();
+            Serial.print("PeltSys 1 setpoint changed to: ");
+            Serial.println(Input2);
+            break;
+        /*Case to set the set point of pelt3*/
+        case 'c':
+            Input1=Serial.parseFloat();
+            Serial.print("PeltSys 1 setpoint changed to: ");
+            Serial.println(Input3);
+            break;
+
+        default:
+            Serial.println("Ready");
+        } //switch
+    } //if serial.availbale
+
+
+}
+
+/*This is the testing function nobody cares about */
+void loop()
+{
+    SerialParse();
+    delay(500);
+}//loop
